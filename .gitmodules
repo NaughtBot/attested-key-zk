@@ -1,0 +1,3 @@
+[submodule "third_party/longfellow-zk"]
+	path = third_party/longfellow-zk
+	url = https://github.com/google/longfellow-zk.git

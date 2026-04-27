@@ -1,0 +1,122 @@
+name: Setup attested-key-zk
+description: Install native prerequisites, cache build outputs, and build a requested target.
+
+inputs:
+  target:
+    description: "Build target: static-lib, apple-artifactbundle, or android-artifactbundle"
+    required: true
+
+outputs:
+  cache-hit:
+    description: Whether an exact cache hit was found.
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve longfellow-zk revision
+      id: submodule
+      shell: bash
+      run: |
+        sha="$(git ls-tree HEAD third_party/longfellow-zk | awk '{print $3}')"
+        if [[ -z "$sha" ]]; then
+          echo "Failed to resolve third_party/longfellow-zk revision" >&2
+          exit 1
+        fi
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - name: Cache native build outputs
+      id: cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          build
+          .build
+          AttestedKeyZKApple.artifactbundle
+          AttestedKeyZKAndroid.artifactbundle
+        key: attested-key-zk-${{ inputs.target }}-${{ runner.os }}-${{ steps.submodule.outputs.sha }}-${{ hashFiles(
+          '.gitmodules',
+          'CMakeLists.txt',
+          'Makefile',
+          'Package.swift',
+          'include/**',
+          'src/**',
+          'tests/**',
+          'bindings/go/**',
+          'bindings/swift/**',
+          'build-artifactbundle.sh',
+          'check-apple-artifactbundle.py',
+          'check-android-artifactbundle.py',
+          'scripts/tests/**'
+          ) }}
+
+    - name: Install Linux build dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        packages=(cmake ninja-build python3 perl rsync pkg-config)
+        if [[ "${{ inputs.target }}" == "static-lib" ]]; then
+          packages+=(libssl-dev)
+        fi
+        sudo apt-get update
+        sudo apt-get install -y "${packages[@]}"
+
+    - name: Install macOS build dependencies
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        missing=()
+        for tool in cmake ninja rsync; do
+          if ! command -v "$tool" >/dev/null 2>&1; then
+            missing+=("$tool")
+          fi
+        done
+        if ! brew --prefix openssl@3 >/dev/null 2>&1; then
+          missing+=(openssl@3)
+        fi
+        if [[ "${#missing[@]}" -gt 0 ]]; then
+          brew install "${missing[@]}"
+        fi
+
+    - name: Initialize longfellow-zk submodule
+      shell: bash
+      run: git submodule update --init --recursive third_party/longfellow-zk
+
+    - name: Export Android NDK environment
+      if: inputs.target == 'android-artifactbundle'
+      shell: bash
+      run: |
+        sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+        if [[ -z "$sdk_root" ]]; then
+          echo "ANDROID_SDK_ROOT/ANDROID_HOME is not set" >&2
+          exit 1
+        fi
+        ndk_root="$(find "$sdk_root/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n1)"
+        if [[ -z "$ndk_root" ]]; then
+          echo "Android NDK not found under $sdk_root/ndk" >&2
+          exit 1
+        fi
+        echo "ANDROID_NDK_HOME=$ndk_root" >> "$GITHUB_ENV"
+        echo "ANDROID_NDK_ROOT=$ndk_root" >> "$GITHUB_ENV"
+
+    - name: Build attested-key-zk
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        ATTESTED_KEY_ZK_TARGET: ${{ inputs.target }}
+      run: |
+        case "$ATTESTED_KEY_ZK_TARGET" in
+          static-lib)
+            make static-lib
+            ;;
+          apple-artifactbundle)
+            make ensure-apple-artifactbundle
+            ;;
+          android-artifactbundle)
+            make ensure-android-artifactbundle
+            ;;
+          *)
+            echo "Unknown attested-key-zk target: $ATTESTED_KEY_ZK_TARGET" >&2
+            exit 1
+            ;;
+        esac

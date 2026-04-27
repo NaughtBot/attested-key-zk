@@ -1,0 +1,14 @@
+.DS_Store
+
+build/
+build-*/
+.build/
+.worktrees/
+dist/
+*.tgz
+
+*.artifactbundle/
+bindings/swift/.build/
+bindings/wasm/node_modules/
+bindings/wasm/lib/
+bindings/wasm/dist/

@@ -1,0 +1,202 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create or update, for example v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    name: Linux native artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build native static library
+        uses: ./.github/actions/setup-attested-key-zk
+        with:
+          target: static-lib
+
+      - name: Test native core
+        run: make test-core
+
+      - name: Stage Linux artifact
+        run: |
+          mkdir -p dist/attested-key-zk-linux-x86_64/lib
+          mkdir -p dist/attested-key-zk-linux-x86_64/include/attested_key_zk
+          cp build/libattested_key_zk.a dist/attested-key-zk-linux-x86_64/lib/
+          cp include/attested_key_zk/approval_proof_v1_zk.h dist/attested-key-zk-linux-x86_64/include/attested_key_zk/
+          tar -czf dist/attested-key-zk-linux-x86_64.tar.gz -C dist attested-key-zk-linux-x86_64
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0 - v7.0.1 fails with ECONNREFUSED on self-hosted runners
+        with:
+          name: release-linux
+          path: dist/attested-key-zk-linux-x86_64.tar.gz
+
+  apple:
+    name: Apple native and SwiftPM artifacts
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build Apple artifact bundle
+        uses: ./.github/actions/setup-attested-key-zk
+        with:
+          target: apple-artifactbundle
+
+      - name: Test Swift package layout
+        run: make test-spm-layout
+
+      - name: Reject placeholder Apple artifact bundle
+        run: python3 check-apple-artifactbundle.py AttestedKeyZKApple.artifactbundle
+
+      - name: Stage Apple artifacts
+        run: |
+          mkdir -p dist/attested-key-zk-macos-arm64/lib
+          mkdir -p dist/attested-key-zk-macos-arm64/include/attested_key_zk
+          cp build/artifactbundle/targets/macos-arm64/libattested_key_zk.a dist/attested-key-zk-macos-arm64/lib/
+          cp include/attested_key_zk/approval_proof_v1_zk.h dist/attested-key-zk-macos-arm64/include/attested_key_zk/
+          tar -czf dist/attested-key-zk-macos-arm64.tar.gz -C dist attested-key-zk-macos-arm64
+          ditto -c -k --keepParent AttestedKeyZKApple.artifactbundle dist/AttestedKeyZKApple.artifactbundle.zip
+          swift package compute-checksum dist/AttestedKeyZKApple.artifactbundle.zip > dist/AttestedKeyZKApple.artifactbundle.zip.swiftpm-checksum
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0 - v7.0.1 fails with ECONNREFUSED on self-hosted runners
+        with:
+          name: release-apple
+          path: |
+            dist/attested-key-zk-macos-arm64.tar.gz
+            dist/AttestedKeyZKApple.artifactbundle.zip
+            dist/AttestedKeyZKApple.artifactbundle.zip.swiftpm-checksum
+
+  android:
+    name: Android artifact bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+
+      - name: Install Android dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+          sdkmanager "ndk;28.2.13676358"
+
+      - name: Build Android artifact bundle
+        uses: ./.github/actions/setup-attested-key-zk
+        with:
+          target: android-artifactbundle
+
+      - name: Reject placeholder Android artifact bundle
+        run: python3 check-android-artifactbundle.py AttestedKeyZKAndroid.artifactbundle
+
+      - name: Stage Android artifact
+        run: |
+          mkdir -p dist
+          zip -r dist/AttestedKeyZKAndroid.artifactbundle.zip AttestedKeyZKAndroid.artifactbundle
+          sha256sum dist/AttestedKeyZKAndroid.artifactbundle.zip | awk '{print $1}' > dist/AttestedKeyZKAndroid.artifactbundle.zip.swiftpm-checksum
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0 - v7.0.1 fails with ECONNREFUSED on self-hosted runners
+        with:
+          name: release-android
+          path: |
+            dist/AttestedKeyZKAndroid.artifactbundle.zip
+            dist/AttestedKeyZKAndroid.artifactbundle.zip.swiftpm-checksum
+
+  wasm:
+    name: WASM package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: mymindstorm/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+
+      - name: Build and smoke test WASM bindings
+        run: make test-wasm
+
+      - name: Stage WASM artifacts
+        run: |
+          mkdir -p dist
+          tar -czf dist/attested-key-zk-wasm-dist.tar.gz -C bindings/wasm dist lib package.json README.md
+          cd bindings/wasm
+          pnpm pack --pack-destination ../../dist
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0 - v7.0.1 fails with ECONNREFUSED on self-hosted runners
+        with:
+          name: release-wasm
+          path: |
+            dist/attested-key-zk-wasm-dist.tar.gz
+            dist/*.tgz
+
+  bindings:
+    name: Binding source artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Stage binding source archives
+        run: |
+          mkdir -p dist
+          tar -czf dist/attested-key-zk-go-binding.tar.gz bindings/go include
+          tar -czf dist/attested-key-zk-swift-binding.tar.gz Package.swift Sources bindings/swift include
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0 - v7.0.1 fails with ECONNREFUSED on self-hosted runners
+        with:
+          name: release-bindings
+          path: dist/*.tar.gz
+
+  publish:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs: [linux, apple, android, wasm, bindings]
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            tag="${DISPATCH_TAG}"
+          fi
+          if [[ -z "$tag" ]]; then
+            echo "Release tag is empty" >&2
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* \
+              --target "$GITHUB_SHA" \
+              --title "Attested Key ZK $tag" \
+              --notes "Release artifacts for $tag."
+          fi

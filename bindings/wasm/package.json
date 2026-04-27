@@ -1,0 +1,35 @@
+{
+  "name": "@naughtbot/attested-key-zk-wasm",
+  "version": "0.1.0",
+  "private": false,
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naughtbot/attested-key-zk.git",
+    "directory": "bindings/wasm"
+  },
+  "files": [
+    "dist/",
+    "lib/",
+    "src/",
+    "package.json",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "types": "./lib/index.d.ts",
+  "scripts": {
+    "build": "pnpm build:ts",
+    "build:ts": "tsc -p tsconfig.json",
+    "build:wasm": "./scripts/build-wasm.sh",
+    "test": "node --test ./scripts/package-entry.test.mjs",
+    "smoke": "node ./scripts/smoke-test.mjs",
+    "verify": "pnpm build:wasm && pnpm build:ts && pnpm smoke"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

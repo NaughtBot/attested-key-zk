@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-linux:
+    name: Native Linux and Go
+    runs-on: arc-runners-naughtbot
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: bindings/go/go.mod
+          cache-dependency-path: bindings/go/go.mod
+
+      - name: Build native static library
+        uses: ./.github/actions/setup-attested-key-zk
+        with:
+          target: static-lib
+
+      - name: Test native core
+        run: make test-core
+
+      - name: Verify Go bindings vendor is in sync
+        run: |
+          ./scripts/sync-go-bindings.sh
+          git diff --exit-code bindings/go/ \
+            || (echo "::error::bindings/go is out of sync - run scripts/sync-go-bindings.sh and commit the result" && exit 1)
+
+      - name: Test Go bindings
+        run: make test-go
+
+      - name: Test artifact bundle packaging rules
+        run: make test-artifactbundle-split
+
+      - name: Test GitHub workflow expectations
+        run: make test-github-workflows
+
+  sanitizer-build:
+    name: AddressSanitizer + UndefinedBehaviorSanitizer
+    runs-on: arc-runners-naughtbot
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - name: Install sanitizer toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build clang lld libssl-dev
+
+      - name: Configure with sanitizers
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -S . -B build-sanitize -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DATTESTED_KEY_ZK_SANITIZERS=ON
+
+      - name: Build under sanitizers
+        run: cmake --build build-sanitize -j
+
+      - name: Run tests under sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build-sanitize --output-on-failure
+
+  swift-apple:
+    name: Swift Apple package
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build Apple artifact bundle
+        uses: ./.github/actions/setup-attested-key-zk
+        with:
+          target: apple-artifactbundle
+
+      - name: Test SwiftPM layout
+        run: make test-spm-layout
+
+      - name: Test Swift bindings
+        run: swift test
+
+  android-artifactbundle:
+    name: Android artifact bundle
+    runs-on: arc-runners-naughtbot
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+
+      - name: Install Android NDK
+        run: sdkmanager "ndk;28.2.13676358"
+
+      - name: Build Android artifact bundle
+        uses: ./.github/actions/setup-attested-key-zk
+        with:
+          target: android-artifactbundle
+
+      - name: Validate Android artifact bundle
+        run: python3 check-android-artifactbundle.py AttestedKeyZKAndroid.artifactbundle
+
+  wasm:
+    name: WASM package
+    runs-on: arc-runners-naughtbot
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: mymindstorm/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+
+      - name: Build and smoke test WASM bindings
+        run: make test-wasm
