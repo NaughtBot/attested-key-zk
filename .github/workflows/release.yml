@@ -65,7 +65,7 @@ jobs:
         run: |
           mkdir -p dist/attested-key-zk-macos-arm64/lib
           mkdir -p dist/attested-key-zk-macos-arm64/include/attested_key_zk
-          cp build/artifactbundle/targets/macos-arm64/libattested_key_zk.a dist/attested-key-zk-macos-arm64/lib/
+          cp AttestedKeyZKApple.artifactbundle/macos-arm64/libattested_key_zk.a dist/attested-key-zk-macos-arm64/lib/
           cp include/attested_key_zk/approval_proof_v1_zk.h dist/attested-key-zk-macos-arm64/include/attested_key_zk/
           tar -czf dist/attested-key-zk-macos-arm64.tar.gz -C dist attested-key-zk-macos-arm64
           ditto -c -k --keepParent AttestedKeyZKApple.artifactbundle dist/AttestedKeyZKApple.artifactbundle.zip
