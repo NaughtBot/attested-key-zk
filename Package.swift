@@ -13,7 +13,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "CAttestedKeyZKAppleBinary",
-            path: "AttestedKeyZKApple.artifactbundle"
+            path: "AttestedKeyZKApple.xcframework"
         ),
         .binaryTarget(
             name: "CAttestedKeyZKAndroidBinary",

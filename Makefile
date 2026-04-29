@@ -1,6 +1,7 @@
 .PHONY: build static-lib configure test test-core test-go test-swift test-wasm
 .PHONY: test-spm-layout test-artifactbundle-split test-github-workflows
 .PHONY: ensure-artifactbundle ensure-apple-artifactbundle ensure-android-artifactbundle
+.PHONY: ensure-apple-xcframework
 .PHONY: ensure-placeholder-apple-artifactbundle ensure-placeholder-android-artifactbundle
 .PHONY: artifactbundle artifactbundle-apple artifactbundle-android clean check-submodule
 .PHONY: sync-go-bindings release
@@ -9,6 +10,7 @@ BUILD_DIR ?= build
 CMAKE_BUILD_TYPE ?= Release
 ARTIFACTBUNDLE_BUILD_ROOT ?= $(CURDIR)/build/artifactbundle
 APPLE_ARTIFACTBUNDLE ?= AttestedKeyZKApple.artifactbundle
+APPLE_XCFRAMEWORK ?= AttestedKeyZKApple.xcframework
 ANDROID_ARTIFACTBUNDLE ?= AttestedKeyZKAndroid.artifactbundle
 APPLE_BINARY_TARGET_NAME ?= CAttestedKeyZKAppleBinary
 ANDROID_BINARY_TARGET_NAME ?= CAttestedKeyZKAndroidBinary
@@ -59,6 +61,15 @@ ensure-apple-artifactbundle:
 		./build-artifactbundle.sh --apple-only; \
 	fi
 	@$(MAKE) ensure-placeholder-android-artifactbundle
+
+ensure-apple-xcframework: ensure-apple-artifactbundle
+	@if ./check-apple-xcframework.py "$(APPLE_XCFRAMEWORK)"; then \
+		echo "==> Apple XCFramework already matches SwiftPM requirements"; \
+	else \
+		echo "==> Building Apple XCFramework from Apple artifact bundle..."; \
+		./scripts/build-apple-xcframework.sh "$(APPLE_ARTIFACTBUNDLE)" "$(APPLE_XCFRAMEWORK)"; \
+		./check-apple-xcframework.py "$(APPLE_XCFRAMEWORK)"; \
+	fi
 
 ensure-android-artifactbundle:
 	@if ATTESTED_KEY_ZK_SWIFTPM_PLACEHOLDER_MARKER="$(SWIFTPM_PLACEHOLDER_MARKER)" ./check-android-artifactbundle.py "$(ANDROID_ARTIFACTBUNDLE)"; then \
@@ -140,7 +151,7 @@ test-artifactbundle-split:
 test-github-workflows:
 	./scripts/tests/test-github-workflows.py
 
-test-spm-layout: test-artifactbundle-split ensure-apple-artifactbundle
+test-spm-layout: test-artifactbundle-split ensure-apple-xcframework
 	./scripts/tests/test-spm-layout.sh
 
 test-swift: test-spm-layout
@@ -163,6 +174,8 @@ artifactbundle-apple:
 	ATTESTED_KEY_ZK_BUNDLE_OUTPUT="$(APPLE_ARTIFACTBUNDLE)" \
 	ATTESTED_KEY_ZK_BINARY_TARGET_NAME="$(APPLE_BINARY_TARGET_NAME)" \
 	./build-artifactbundle.sh --apple-only
+	./scripts/build-apple-xcframework.sh "$(APPLE_ARTIFACTBUNDLE)" "$(APPLE_XCFRAMEWORK)"
+	./check-apple-xcframework.py "$(APPLE_XCFRAMEWORK)"
 	@$(MAKE) ensure-placeholder-android-artifactbundle
 
 artifactbundle-android:

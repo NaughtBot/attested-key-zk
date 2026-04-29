@@ -35,24 +35,29 @@ The repo-owned SwiftPM entrypoint is now the root [Package.swift](./Package.swif
 mirroring the `bbs-ffi` pattern:
 
 - `make artifactbundle-apple`: build the Apple static libraries and package
-  `AttestedKeyZKApple.artifactbundle`
+  both `AttestedKeyZKApple.artifactbundle` and
+  `AttestedKeyZKApple.xcframework`
 - `make artifactbundle-android`: build the Android static libraries and package
   `AttestedKeyZKAndroid.artifactbundle`
 - `make artifactbundle`: build both platform-specific bundles
 - `make test-swift`: validate the artifact bundle layout, then run the Swift
   tests against the packaged binary target
 
-The Apple and Android artifact bundles are committed so clients can consume
-`https://github.com/NaughtBot/attested-key-zk` directly as a Swift package.
-When a platform bundle is rebuilt locally, the Makefile can still emit a marked
-placeholder bundle for the opposite platform so SwiftPM can resolve the package
-graph on Apple-only or Android-only hosts. Running the real platform-specific
-prep target later replaces that placeholder with a real bundle.
+The Apple XCFramework and Android artifact bundle are committed so clients can
+consume `https://github.com/NaughtBot/attested-key-zk` directly as a Swift
+package. The Apple artifact bundle remains a build/release staging format used
+to assemble the XCFramework. When a platform bundle is rebuilt locally, the
+Makefile can still emit a marked placeholder bundle for the opposite platform so
+SwiftPM can resolve the package graph on Apple-only or Android-only hosts.
+Running the real platform-specific prep target later replaces that placeholder
+with a real bundle.
 
 Swift consumers should depend on `attested-key-zk/` directly rather than the
 nested `bindings/swift` folder, so the shared wrapper no longer needs local
 `-L ../../build` linker flags and SwiftPM resolves the Apple or Android binary
-target by platform instead of relying on one shared bundle path.
+target by platform instead of relying on one shared bundle path. Apple app
+targets consume `AttestedKeyZKApple.xcframework`; Android SwiftPM builds
+consume `AttestedKeyZKAndroid.artifactbundle`.
 
 ## API shape
 
@@ -122,7 +127,8 @@ Tags matching `v*` run the release workflow. The workflow builds and attaches:
 
 - Linux native archive with `libattested_key_zk.a` and public C headers
 - macOS native archive with `libattested_key_zk.a` and public C headers
-- Apple SwiftPM artifact bundle for macOS, iOS devices, and iOS simulators
+- Apple SwiftPM XCFramework for macOS, iOS devices, and iOS simulators
+- Apple SwiftPM artifact bundle staging archive
 - Android SwiftPM artifact bundle for `arm64-v8a` and `x86_64`
 - Go binding source archive
 - Swift binding source archive
@@ -131,6 +137,7 @@ Tags matching `v*` run the release workflow. The workflow builds and attaches:
 - `SHA256SUMS` for the uploaded release assets
 
 The workflow builds release archives from source and republishes the SwiftPM
-artifact bundles as zip assets. The source-controlled `.artifactbundle`
-directories are the package payload used by Git URL consumers; transient build
-directories, release archives, and WASM output remain uncommitted.
+SwiftPM artifacts as zip assets. The source-controlled Apple XCFramework and
+Android artifact bundle are the package payload used by Git URL consumers;
+transient build directories, release archives, and WASM output remain
+uncommitted.

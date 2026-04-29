@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Build Apple artifact bundle
+      - name: Build Apple SwiftPM artifacts
         uses: ./.github/actions/setup-attested-key-zk
         with:
           target: apple-artifactbundle
@@ -56,8 +56,10 @@ jobs:
       - name: Test Swift package layout
         run: make test-spm-layout
 
-      - name: Reject placeholder Apple artifact bundle
-        run: python3 check-apple-artifactbundle.py AttestedKeyZKApple.artifactbundle
+      - name: Validate Apple SwiftPM artifacts
+        run: |
+          python3 check-apple-artifactbundle.py AttestedKeyZKApple.artifactbundle
+          python3 check-apple-xcframework.py AttestedKeyZKApple.xcframework
 
       - name: Stage Apple artifacts
         run: |
@@ -67,7 +69,9 @@ jobs:
           cp include/attested_key_zk/approval_proof_v1_zk.h dist/attested-key-zk-macos-arm64/include/attested_key_zk/
           tar -czf dist/attested-key-zk-macos-arm64.tar.gz -C dist attested-key-zk-macos-arm64
           ditto -c -k --keepParent AttestedKeyZKApple.artifactbundle dist/AttestedKeyZKApple.artifactbundle.zip
+          ditto -c -k --keepParent AttestedKeyZKApple.xcframework dist/AttestedKeyZKApple.xcframework.zip
           swift package compute-checksum dist/AttestedKeyZKApple.artifactbundle.zip > dist/AttestedKeyZKApple.artifactbundle.zip.swiftpm-checksum
+          swift package compute-checksum dist/AttestedKeyZKApple.xcframework.zip > dist/AttestedKeyZKApple.xcframework.zip.swiftpm-checksum
 
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0 - v7.0.1 fails with ECONNREFUSED on self-hosted runners
         with:
@@ -76,6 +80,8 @@ jobs:
             dist/attested-key-zk-macos-arm64.tar.gz
             dist/AttestedKeyZKApple.artifactbundle.zip
             dist/AttestedKeyZKApple.artifactbundle.zip.swiftpm-checksum
+            dist/AttestedKeyZKApple.xcframework.zip
+            dist/AttestedKeyZKApple.xcframework.zip.swiftpm-checksum
 
   android:
     name: Android artifact bundle
