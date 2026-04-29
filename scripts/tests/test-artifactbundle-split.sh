@@ -21,7 +21,7 @@ placeholder_libs=(
 
 for lib in "${placeholder_libs[@]}"; do
     mkdir -p "$(dirname "$lib")"
-    : >"$lib"
+    printf 'test static archive placeholder\n' >"$lib"
 done
 
 make -C "$REPO_ROOT" \

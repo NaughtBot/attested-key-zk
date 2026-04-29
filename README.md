@@ -42,11 +42,12 @@ mirroring the `bbs-ffi` pattern:
 - `make test-swift`: validate the artifact bundle layout, then run the Swift
   tests against the packaged binary target
 
-When only one platform bundle is built, the Makefile also emits a marked
-placeholder bundle for the other platform so SwiftPM can still resolve the
-package graph on Apple-only or Android-only hosts. Running the real
-platform-specific prep target later replaces that placeholder with a real
-bundle.
+The Apple and Android artifact bundles are committed so clients can consume
+`https://github.com/NaughtBot/attested-key-zk` directly as a Swift package.
+When a platform bundle is rebuilt locally, the Makefile can still emit a marked
+placeholder bundle for the opposite platform so SwiftPM can resolve the package
+graph on Apple-only or Android-only hosts. Running the real platform-specific
+prep target later replaces that placeholder with a real bundle.
 
 Swift consumers should depend on `attested-key-zk/` directly rather than the
 nested `bindings/swift` folder, so the shared wrapper no longer needs local
@@ -129,5 +130,7 @@ Tags matching `v*` run the release workflow. The workflow builds and attaches:
   `@naughtbot/attested-key-zk-wasm`
 - `SHA256SUMS` for the uploaded release assets
 
-The workflow builds artifacts from source; generated libraries, artifact
-bundles, and WASM output are intentionally not committed to git.
+The workflow builds release archives from source and republishes the SwiftPM
+artifact bundles as zip assets. The source-controlled `.artifactbundle`
+directories are the package payload used by Git URL consumers; transient build
+directories, release archives, and WASM output remain uncommitted.

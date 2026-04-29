@@ -174,7 +174,6 @@ artifactbundle-android:
 
 clean:
 	rm -rf $(BUILD_DIR) .build $(ARTIFACTBUNDLE_BUILD_ROOT) bindings/swift/.build bindings/wasm/lib bindings/wasm/dist bindings/wasm/node_modules
-	rm -rf AttestedKeyZK.artifactbundle $(APPLE_ARTIFACTBUNDLE) $(ANDROID_ARTIFACTBUNDLE)
 
 release:
 	@./scripts/release.sh "$(VERSION)"

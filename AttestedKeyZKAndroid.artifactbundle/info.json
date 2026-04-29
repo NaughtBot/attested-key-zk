@@ -1,0 +1,28 @@
+{
+    "schemaVersion": "1.0",
+    "artifacts": {
+        "CAttestedKeyZKAndroidBinary": {
+            "version": "1.0.0",
+            "type": "staticLibrary",
+            "variants": [
+                {
+                    "path": "android-aarch64/libattested_key_zk.a",
+                    "supportedTriples": ["aarch64-unknown-linux-android35", "aarch64-unknown-linux-android36"],
+                    "headerPath": "android-aarch64/headers",
+                    "staticLibraryMetadata": {
+                        "headerPaths": ["android-aarch64/headers"],
+                        "moduleMapPath": "android-aarch64/headers/module.modulemap"
+                    }
+                },
+                {
+                    "path": "android-x86_64/libattested_key_zk.a",
+                    "supportedTriples": ["x86_64-unknown-linux-android35", "x86_64-unknown-linux-android36"],
+                    "headerPath": "android-x86_64/headers",
+                    "staticLibraryMetadata": {
+                        "headerPaths": ["android-x86_64/headers"],
+                        "moduleMapPath": "android-x86_64/headers/module.modulemap"
+                    }
+                }            ]
+        }
+    }
+}

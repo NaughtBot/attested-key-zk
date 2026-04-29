@@ -33,11 +33,53 @@ if android_binary.get("path") != "AttestedKeyZKAndroid.artifactbundle":
     raise SystemExit("expected Android artifact bundle binary target path")
 
 with open(f"{package_dir}/AttestedKeyZKApple.artifactbundle/info.json", "r", encoding="utf-8") as f:
-    artifact_bundle = json.load(f)
+    apple_artifact_bundle = json.load(f)
+with open(f"{package_dir}/AttestedKeyZKAndroid.artifactbundle/info.json", "r", encoding="utf-8") as f:
+    android_artifact_bundle = json.load(f)
 
-artifacts = artifact_bundle.get("artifacts", {})
+artifacts = apple_artifact_bundle.get("artifacts", {})
 if set(artifacts.keys()) != {"CAttestedKeyZKAppleBinary"}:
     raise SystemExit(f"unexpected artifact bundle keys: {sorted(artifacts.keys())}")
+
+def assert_static_library_metadata(bundle, artifact_key, required_triples):
+    variants = bundle.get("artifacts", {}).get(artifact_key, {}).get("variants", [])
+    seen_triples = set()
+    for variant in variants:
+        metadata = variant.get("staticLibraryMetadata")
+        if not isinstance(metadata, dict):
+            raise SystemExit(f"{artifact_key} variant is missing staticLibraryMetadata")
+        header_paths = metadata.get("headerPaths")
+        module_map_path = metadata.get("moduleMapPath")
+        if not isinstance(header_paths, list) or not header_paths:
+            raise SystemExit(f"{artifact_key} variant is missing static library headerPaths")
+        if not all(isinstance(path, str) and path for path in header_paths):
+            raise SystemExit(f"{artifact_key} variant has invalid headerPaths: {header_paths}")
+        if not isinstance(module_map_path, str) or not module_map_path:
+            raise SystemExit(f"{artifact_key} variant is missing static library moduleMapPath")
+        seen_triples.update(variant.get("supportedTriples", []))
+    missing = set(required_triples) - seen_triples
+    if missing:
+        raise SystemExit(f"{artifact_key} is missing supported triples: {sorted(missing)}")
+
+assert_static_library_metadata(
+    apple_artifact_bundle,
+    "CAttestedKeyZKAppleBinary",
+    {
+        "arm64-apple-ios",
+        "aarch64-apple-ios",
+        "arm64-apple-ios-simulator",
+        "aarch64-apple-ios-simulator",
+        "arm64-apple-macosx",
+    },
+)
+assert_static_library_metadata(
+    android_artifact_bundle,
+    "CAttestedKeyZKAndroidBinary",
+    {
+        "aarch64-unknown-linux-android35",
+        "x86_64-unknown-linux-android35",
+    },
+)
 
 c_target = targets.get("CAttestedKeyZK")
 if c_target is None or c_target.get("type") != "regular":
