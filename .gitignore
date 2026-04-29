@@ -7,7 +7,6 @@ build-*/
 dist/
 *.tgz
 
-*.artifactbundle/
 bindings/swift/.build/
 bindings/wasm/node_modules/
 bindings/wasm/lib/

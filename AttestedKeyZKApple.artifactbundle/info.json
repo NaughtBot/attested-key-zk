@@ -1,0 +1,37 @@
+{
+    "schemaVersion": "1.0",
+    "artifacts": {
+        "CAttestedKeyZKAppleBinary": {
+            "version": "1.0.0",
+            "type": "staticLibrary",
+            "variants": [
+                {
+                    "path": "ios-arm64/libattested_key_zk.a",
+                    "supportedTriples": ["arm64-apple-ios", "aarch64-apple-ios"],
+                    "headerPath": "ios-arm64/headers",
+                    "staticLibraryMetadata": {
+                        "headerPaths": ["ios-arm64/headers"],
+                        "moduleMapPath": "ios-arm64/headers/module.modulemap"
+                    }
+                },
+                {
+                    "path": "ios-arm64-simulator/libattested_key_zk.a",
+                    "supportedTriples": ["arm64-apple-ios-simulator", "aarch64-apple-ios-simulator"],
+                    "headerPath": "ios-arm64-simulator/headers",
+                    "staticLibraryMetadata": {
+                        "headerPaths": ["ios-arm64-simulator/headers"],
+                        "moduleMapPath": "ios-arm64-simulator/headers/module.modulemap"
+                    }
+                },
+                {
+                    "path": "macos-arm64/libattested_key_zk.a",
+                    "supportedTriples": ["arm64-apple-macosx", "aarch64-apple-macosx"],
+                    "headerPath": "macos-arm64/headers",
+                    "staticLibraryMetadata": {
+                        "headerPaths": ["macos-arm64/headers"],
+                        "moduleMapPath": "macos-arm64/headers/module.modulemap"
+                    }
+                }            ]
+        }
+    }
+}

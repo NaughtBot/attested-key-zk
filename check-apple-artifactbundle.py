@@ -9,7 +9,9 @@ import sys
 
 
 REQUIRED_TRIPLES = {
+    "arm64-apple-ios",
     "aarch64-apple-ios",
+    "arm64-apple-ios-simulator",
     "aarch64-apple-ios-simulator",
     "arm64-apple-macosx",
 }
@@ -67,17 +69,29 @@ def main() -> int:
     seen_triples: set[str] = set()
     for variant in variants:
         library_path = variant.get("path")
-        header_path = variant.get("headerPath")
-        if not isinstance(library_path, str) or not isinstance(header_path, str):
+        static_library_metadata = variant.get("staticLibraryMetadata")
+        if not isinstance(library_path, str) or not isinstance(static_library_metadata, dict):
+            continue
+        header_paths = static_library_metadata.get("headerPaths")
+        module_map_path = static_library_metadata.get("moduleMapPath")
+        if (
+            not isinstance(header_paths, list)
+            or not header_paths
+            or not all(isinstance(path, str) for path in header_paths)
+            or not isinstance(module_map_path, str)
+        ):
             continue
 
         library_file = bundle_dir / library_path
-        headers_dir = bundle_dir / header_path
-        if not library_file.is_file():
+        if not library_file.is_file() or library_file.stat().st_size == 0:
             continue
-        if not (headers_dir / "attested_key_zk" / "approval_proof_v1_zk.h").is_file():
+        headers_dirs = [bundle_dir / header_path for header_path in header_paths]
+        if not any(
+            (headers_dir / "attested_key_zk" / "approval_proof_v1_zk.h").is_file()
+            for headers_dir in headers_dirs
+        ):
             continue
-        modulemap_path = headers_dir / "module.modulemap"
+        modulemap_path = bundle_dir / module_map_path
         if not modulemap_path.is_file():
             continue
         try:

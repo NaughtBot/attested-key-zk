@@ -23,8 +23,8 @@ targets = {target["name"]: target for target in data["targets"]}
 apple_binary = targets.get("CAttestedKeyZKAppleBinary")
 if apple_binary is None or apple_binary.get("type") != "binary":
     raise SystemExit("expected CAttestedKeyZKAppleBinary binary target")
-if apple_binary.get("path") != "AttestedKeyZKApple.artifactbundle":
-    raise SystemExit("expected Apple artifact bundle binary target path")
+if apple_binary.get("path") != "AttestedKeyZKApple.xcframework":
+    raise SystemExit("expected Apple XCFramework binary target path")
 
 android_binary = targets.get("CAttestedKeyZKAndroidBinary")
 if android_binary is None or android_binary.get("type") != "binary":
@@ -32,12 +32,37 @@ if android_binary is None or android_binary.get("type") != "binary":
 if android_binary.get("path") != "AttestedKeyZKAndroid.artifactbundle":
     raise SystemExit("expected Android artifact bundle binary target path")
 
-with open(f"{package_dir}/AttestedKeyZKApple.artifactbundle/info.json", "r", encoding="utf-8") as f:
-    artifact_bundle = json.load(f)
+with open(f"{package_dir}/AttestedKeyZKAndroid.artifactbundle/info.json", "r", encoding="utf-8") as f:
+    android_artifact_bundle = json.load(f)
 
-artifacts = artifact_bundle.get("artifacts", {})
-if set(artifacts.keys()) != {"CAttestedKeyZKAppleBinary"}:
-    raise SystemExit(f"unexpected artifact bundle keys: {sorted(artifacts.keys())}")
+def assert_static_library_metadata(bundle, artifact_key, required_triples):
+    variants = bundle.get("artifacts", {}).get(artifact_key, {}).get("variants", [])
+    seen_triples = set()
+    for variant in variants:
+        metadata = variant.get("staticLibraryMetadata")
+        if not isinstance(metadata, dict):
+            raise SystemExit(f"{artifact_key} variant is missing staticLibraryMetadata")
+        header_paths = metadata.get("headerPaths")
+        module_map_path = metadata.get("moduleMapPath")
+        if not isinstance(header_paths, list) or not header_paths:
+            raise SystemExit(f"{artifact_key} variant is missing static library headerPaths")
+        if not all(isinstance(path, str) and path for path in header_paths):
+            raise SystemExit(f"{artifact_key} variant has invalid headerPaths: {header_paths}")
+        if not isinstance(module_map_path, str) or not module_map_path:
+            raise SystemExit(f"{artifact_key} variant is missing static library moduleMapPath")
+        seen_triples.update(variant.get("supportedTriples", []))
+    missing = set(required_triples) - seen_triples
+    if missing:
+        raise SystemExit(f"{artifact_key} is missing supported triples: {sorted(missing)}")
+
+assert_static_library_metadata(
+    android_artifact_bundle,
+    "CAttestedKeyZKAndroidBinary",
+    {
+        "aarch64-unknown-linux-android35",
+        "x86_64-unknown-linux-android35",
+    },
+)
 
 c_target = targets.get("CAttestedKeyZK")
 if c_target is None or c_target.get("type") != "regular":
@@ -73,6 +98,9 @@ android_condition = deps["CAttestedKeyZKAndroidBinary"]
 if android_condition is None or android_condition.get("platformNames") != ["android"]:
     raise SystemExit(f"unexpected Android binary target condition: {android_condition}")
 PY
+
+python3 "$REPO_ROOT/check-apple-xcframework.py" "$REPO_ROOT/AttestedKeyZKApple.xcframework"
+python3 "$REPO_ROOT/check-android-artifactbundle.py" "$REPO_ROOT/AttestedKeyZKAndroid.artifactbundle"
 
 if [[ ! -f "$REPO_ROOT/Sources/CAttestedKeyZK/shim.c" ]]; then
     echo "expected Sources/CAttestedKeyZK/shim.c placeholder translation unit" >&2

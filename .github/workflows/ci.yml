@@ -87,13 +87,16 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Build Apple artifact bundle
+      - name: Build Apple SwiftPM artifacts
         uses: ./.github/actions/setup-attested-key-zk
         with:
           target: apple-artifactbundle
 
       - name: Test SwiftPM layout
         run: make test-spm-layout
+
+      - name: Validate Apple XCFramework
+        run: python3 check-apple-xcframework.py AttestedKeyZKApple.xcframework
 
       - name: Test Swift bindings
         run: swift test

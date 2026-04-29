@@ -44,10 +44,13 @@ swift test
 ```
 
 The consumer-facing Swift package lives at the repository root. Build
-`AttestedKeyZKApple.artifactbundle` first with `make artifactbundle-apple`
-or build both platform-specific bundles with `make artifactbundle`.
-The Makefile creates a placeholder opposite-platform bundle when needed so
-SwiftPM can resolve the package on a host that only has one platform toolchain.
+`AttestedKeyZKApple.artifactbundle` with `make artifactbundle-apple`, build
+`AttestedKeyZKAndroid.artifactbundle` with `make artifactbundle-android`, or
+rebuild both with `make artifactbundle`. The release bundles are committed at
+the repository root so downstream SwiftPM consumers can depend on the GitHub
+repository directly. The Makefile creates a placeholder opposite-platform
+bundle when needed so SwiftPM can resolve the package on a host that only has
+one platform toolchain.
 
 ## TypeScript / WASM
 

@@ -33,6 +33,7 @@ runs:
           build
           .build
           AttestedKeyZKApple.artifactbundle
+          AttestedKeyZKApple.xcframework
           AttestedKeyZKAndroid.artifactbundle
         key: attested-key-zk-${{ inputs.target }}-${{ runner.os }}-${{ steps.submodule.outputs.sha }}-${{ hashFiles(
           '.gitmodules',
@@ -46,7 +47,9 @@ runs:
           'bindings/swift/**',
           'build-artifactbundle.sh',
           'check-apple-artifactbundle.py',
+          'check-apple-xcframework.py',
           'check-android-artifactbundle.py',
+          'scripts/build-apple-xcframework.sh',
           'scripts/tests/**'
           ) }}
 

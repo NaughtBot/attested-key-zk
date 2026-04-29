@@ -418,11 +418,16 @@ emit_variant_json() {
     local path="$1"
     local triples="$2"
     local header_path="$3"
+    local module_map_path="${header_path}/module.modulemap"
     cat <<EOF
                 {
                     "path": "${path}",
                     "supportedTriples": [${triples}],
-                    "headerPath": "${header_path}"
+                    "headerPath": "${header_path}",
+                    "staticLibraryMetadata": {
+                        "headerPaths": ["${header_path}"],
+                        "moduleMapPath": "${module_map_path}"
+                    }
                 }
 EOF
 }
@@ -481,9 +486,9 @@ if [[ "$BUILD_APPLE" -eq 1 ]]; then
     write_bundle_headers "$BUNDLE_OUTPUT/ios-arm64/headers" "$BINARY_TARGET_NAME"
     write_bundle_headers "$BUNDLE_OUTPUT/ios-arm64-simulator/headers" "$BINARY_TARGET_NAME"
     write_bundle_headers "$BUNDLE_OUTPUT/macos-arm64/headers" "$BINARY_TARGET_NAME"
-    variants+=("$(emit_variant_json "ios-arm64/libattested_key_zk.a" '"aarch64-apple-ios"' "ios-arm64/headers")")
-    variants+=("$(emit_variant_json "ios-arm64-simulator/libattested_key_zk.a" '"aarch64-apple-ios-simulator"' "ios-arm64-simulator/headers")")
-    variants+=("$(emit_variant_json "macos-arm64/libattested_key_zk.a" '"arm64-apple-macosx"' "macos-arm64/headers")")
+    variants+=("$(emit_variant_json "ios-arm64/libattested_key_zk.a" '"arm64-apple-ios", "aarch64-apple-ios"' "ios-arm64/headers")")
+    variants+=("$(emit_variant_json "ios-arm64-simulator/libattested_key_zk.a" '"arm64-apple-ios-simulator", "aarch64-apple-ios-simulator"' "ios-arm64-simulator/headers")")
+    variants+=("$(emit_variant_json "macos-arm64/libattested_key_zk.a" '"arm64-apple-macosx", "aarch64-apple-macosx"' "macos-arm64/headers")")
 fi
 
 if [[ "$BUILD_ANDROID" -eq 1 ]]; then

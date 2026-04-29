@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
@@ -13,7 +13,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "CAttestedKeyZKAppleBinary",
-            path: "AttestedKeyZKApple.artifactbundle"
+            path: "AttestedKeyZKApple.xcframework"
         ),
         .binaryTarget(
             name: "CAttestedKeyZKAndroidBinary",
