@@ -1,4 +1,4 @@
-.PHONY: build static-lib configure test test-core test-go test-swift test-wasm
+.PHONY: build static-lib configure test test-core test-go verify-go-linux-arm64-build test-swift test-wasm
 .PHONY: test-spm-layout test-artifactbundle-split test-github-workflows
 .PHONY: ensure-artifactbundle ensure-apple-artifactbundle ensure-android-artifactbundle
 .PHONY: ensure-apple-xcframework
@@ -38,6 +38,9 @@ sync-go-bindings: check-submodule
 
 test-go: sync-go-bindings
 	cd bindings/go && GOWORK=off go test ./...
+
+verify-go-linux-arm64-build: sync-go-bindings
+	./scripts/tests/verify-go-linux-arm64-build.sh
 
 ensure-artifactbundle: ensure-apple-artifactbundle ensure-android-artifactbundle
 	@echo "==> Apple and Android artifact bundles are ready"

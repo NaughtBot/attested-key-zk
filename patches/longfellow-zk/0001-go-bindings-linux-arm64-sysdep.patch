@@ -1,0 +1,105 @@
+diff --git a/lib/algebra/sysdep.h b/lib/algebra/sysdep.h
+--- a/lib/algebra/sysdep.h
++++ b/lib/algebra/sysdep.h
+@@ -126,6 +126,62 @@ static inline void mulq(uint64_t* l, uint64_t* h, uint64_t a, uint64_t b) {
+ #else  // defined(__SIZEOF_INT128__)
+ #define SYSDEP_MULQ64_NOT_DEFINED
+ #endif  // defined(__SIZEOF_INT128__)
++#elif defined(__SIZEOF_INT128__)
++// Portable fallback for non-x86 GCC targets such as Linux/aarch64. The clang
++// branch above uses compiler builtins; GCC does not provide those carry
++// builtins, so use widened arithmetic instead.
++static inline unsigned long long adc(unsigned long long* a,
++                                     unsigned long long b,
++                                     unsigned long long c) {
++  constexpr unsigned kBits = sizeof(*a) * 8;
++  __uint128_t sum = static_cast<__uint128_t>(*a) + b + c;
++  *a = static_cast<unsigned long long>(sum);
++  return static_cast<unsigned long long>(sum >> kBits);
++}
++static inline unsigned long adc(unsigned long* a, unsigned long b,
++                                unsigned long c) {
++  constexpr unsigned kBits = sizeof(*a) * 8;
++  __uint128_t sum = static_cast<__uint128_t>(*a) + b + c;
++  *a = static_cast<unsigned long>(sum);
++  return static_cast<unsigned long>(sum >> kBits);
++}
++static inline unsigned int adc(unsigned int* a, unsigned int b,
++                               unsigned int c) {
++  uint64_t sum = static_cast<uint64_t>(*a) + b + c;
++  *a = static_cast<unsigned int>(sum);
++  return static_cast<unsigned int>(sum >> 32);
++}
++
++static inline unsigned long long sbb(unsigned long long* a,
++                                     unsigned long long b,
++                                     unsigned long long c) {
++  __uint128_t minuend = *a;
++  __uint128_t subtrahend = static_cast<__uint128_t>(b) + c;
++  *a = static_cast<unsigned long long>(minuend - subtrahend);
++  return minuend < subtrahend ? 1 : 0;
++}
++static inline unsigned long sbb(unsigned long* a, unsigned long b,
++                                unsigned long c) {
++  __uint128_t minuend = *a;
++  __uint128_t subtrahend = static_cast<__uint128_t>(b) + c;
++  *a = static_cast<unsigned long>(minuend - subtrahend);
++  return minuend < subtrahend ? 1 : 0;
++}
++static inline unsigned int sbb(unsigned int* a, unsigned int b,
++                               unsigned int c) {
++  uint64_t minuend = *a;
++  uint64_t subtrahend = static_cast<uint64_t>(b) + c;
++  *a = static_cast<unsigned int>(minuend - subtrahend);
++  return minuend < subtrahend ? 1 : 0;
++}
++
++static inline void mulq(uint64_t* l, uint64_t* h, uint64_t a, uint64_t b) {
++  __uint128_t p = static_cast<__uint128_t>(b) * static_cast<__uint128_t>(a);
++  *l = p;
++  *h = p >> 64;
++}
++#else
++#define SYSDEP_MULQ64_NOT_DEFINED
+ #endif
+ 
+ static inline void mulq(uint32_t* l, uint32_t* h, uint32_t a, uint32_t b) {
+@@ -366,7 +422,7 @@ static inline uint32_t sub_sysdep(uint32_t a, uint32_t y, uint32_t m) {
+   return (y > a) ? (t0 + m) : t0;
+ }
+ 
+-#elif defined(__aarch64__)
++#elif defined(__aarch64__) && defined(__clang__)
+ 
+ static inline void cmovne(size_t W, uint64_t a[/*W*/], uint64_t x, uint64_t y,
+                           const uint64_t b[/*W*/]) {
+@@ -446,6 +502,29 @@ static inline uint64_t sub_sysdep(uint64_t a, uint64_t y, uint64_t m) {
+   return a + m;
+ }
+ 
++static inline void cmovne(size_t W, uint32_t a[/*W*/], uint32_t x, uint32_t y,
++                          const uint32_t b[/*W*/]) {
++  for (size_t i = 0; i < W; ++i) {
++    a[i] = (x != y) ? b[i] : a[i];
++  }
++}
++
++static inline void cmovnz(size_t W, uint32_t a[/*W*/], uint32_t nz,
++                          const uint32_t b[/*W*/]) {
++  constexpr uint32_t z = 0;
++  cmovne(W, a, nz, z, b);
++}
++
++static inline uint32_t addcmovc(uint32_t a, uint32_t b, uint32_t c) {
++  uint32_t t = a + b;
++  return (a > t) ? t : c;
++}
++
++static inline uint32_t sub_sysdep(uint32_t a, uint32_t y, uint32_t m) {
++  uint32_t t0 = a - y;
++  return (y > a) ? (t0 + m) : t0;
++}
++
+ #else  // generic portable code
+ 
+ // a = (x != y) ? b : a
